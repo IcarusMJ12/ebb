@@ -1,5 +1,7 @@
 #pragma once
 // expressly better bencoder
+// Copyright (C) 2013 Igor Kaplounenko
+// Licensed under MIT License
 
 #include <cassert>
 #include <cstdio>

@@ -1,3 +1,6 @@
+// Copyright (C) 2013 Igor Kaplounenko
+// Licensed under MIT License
+
 #include "ebb.hpp"
 
 #include "gtest/gtest.h"

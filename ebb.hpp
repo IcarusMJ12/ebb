@@ -9,7 +9,6 @@
 
 namespace ebb {
 	namespace internal {
-		// stolen almost verbatim from:
 		// http://stackoverflow.com/questions/7858817/unpacking-a-tuple-to-call-a-matching-function-pointer?lq=1
 		template<int...> struct seq {};
 		template<int N, int... S> struct gen_seq : gen_seq<N-1, N-1, S...> {};
@@ -21,22 +20,22 @@ namespace ebb {
 		}; 
 	}
 
-	struct internal::bencode_token dict_begin = {'d'};
-	struct internal::bencode_token dict_end = {'e'};
-	struct internal::bencode_token list_begin = {'l'};
-	struct internal::bencode_token list_end = {'e'};
+	struct internal::bencode_token bdict_begin = {'d'};
+	struct internal::bencode_token bdict_end = {'e'};
+	struct internal::bencode_token blist_begin = {'l'};
+	struct internal::bencode_token blist_end = {'e'};
 
 	
-	template<typename... Arguments> std::tuple<Arguments...> benc_k_v(Arguments&&... remaining) {
+	template<typename... Arguments> std::tuple<Arguments...> k_v(Arguments&&... remaining) {
 		return std::forward_as_tuple(remaining...);
 	}
 
-	template<typename... Arguments> std::tuple<internal::bencode_token, Arguments..., internal::bencode_token> benc_list(Arguments&&... remaining) {
-		return std::forward_as_tuple(list_begin, remaining..., list_end);
+	template<typename... Arguments> std::tuple<internal::bencode_token, Arguments..., internal::bencode_token> blist(Arguments&&... remaining) {
+		return std::forward_as_tuple(blist_begin, remaining..., blist_end);
 	}
 
-	template<typename... Arguments> std::tuple<internal::bencode_token, Arguments..., internal::bencode_token> benc_dict(Arguments&&... remaining) {
-		return std::forward_as_tuple(dict_begin, remaining..., dict_end);
+	template<typename... Arguments> std::tuple<internal::bencode_token, Arguments..., internal::bencode_token> bdict(Arguments&&... remaining) {
+		return std::forward_as_tuple(bdict_begin, remaining..., bdict_end);
 	}
 
 	class bencoder {

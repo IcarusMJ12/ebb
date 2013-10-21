@@ -1,0 +1,6 @@
+a.out
+*.ii
+*.s
+*.o
+*.dblite
+unit_tests

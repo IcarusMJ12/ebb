@@ -7,6 +7,10 @@
 
 using namespace ebb;
 
+const char* get_test_string() {
+	return "this is some string";
+};
+
 TEST(ebb, integer) {
 	unsigned char output[1024];
 	unsigned char* last = bencoder(output, 1024)(
@@ -137,6 +141,12 @@ TEST(ebb, multiple_writes) {
 	ASSERT_NE(static_cast<unsigned char*>(NULL), last);
 	*last = '\0';
 	EXPECT_STREQ("l3:abc3:defe", reinterpret_cast<const char*>(output));
+}
+
+TEST(ebb, string_function) {
+	unsigned char output[1024];
+	unsigned char* last = bencoder(output, 1024)(get_test_string());
+	ASSERT_NE(static_cast<unsigned char*>(NULL), last);
 }
 
 TEST(ebb, fancy) {

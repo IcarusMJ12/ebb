@@ -127,6 +127,18 @@ TEST(ebb, key_types) {
 	EXPECT_NE(static_cast<unsigned char*>(NULL), last);
 }
 
+TEST(ebb, multiple_writes) {
+	unsigned char output[1024];
+	const char* data0 = "abc";
+	const char* data1 = "def";
+	bencoder b(output, 1024);
+	b(blist_begin, data0);
+	unsigned char* last = b(data1, blist_end);
+	ASSERT_NE(static_cast<unsigned char*>(NULL), last);
+	*last = '\0';
+	EXPECT_STREQ("l3:abc3:defe", reinterpret_cast<const char*>(output));
+}
+
 TEST(ebb, fancy) {
 	unsigned char output[1024];
 	std::array<unsigned char, 3> data1 = {{'e', 'f', 'g'}};

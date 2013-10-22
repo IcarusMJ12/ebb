@@ -3,6 +3,8 @@
 // Copyright (C) 2013 Igor Kaplounenko
 // Licensed under MIT License
 
+#include <cinttypes>
+#include <cstdint>
 #include <cassert>
 #include <cstdio>
 #include <array>
@@ -17,9 +19,36 @@ namespace ebb {
 		// generated sequence specialization / endpoint
 		template<int... S> struct gen_seq<0, S...> { typedef seq<S...> type; };
 
+		// for list and dict start/end tokens, i.e. 'd', 'l', 'e'
 		struct bencode_token {
 			const unsigned char token;
 		}; 
+
+
+		template<typename> struct is_unsigned_char_array : std::false_type {};
+		template<size_t N> struct is_unsigned_char_array<std::array<unsigned char, N>>
+			: std::true_type {};
+		template<size_t N> struct is_unsigned_char_array<std::array<unsigned char, N>&>
+			: std::true_type {};
+		template<size_t N> struct is_unsigned_char_array<
+			const std::array<unsigned char, N>> : std::true_type {};
+		template<size_t N> struct is_unsigned_char_array<
+			const std::array<unsigned char, N>&> : std::true_type {};
+		template<typename A> void assert_valid_key_type() {
+			static_assert(std::is_convertible<A, std::vector<unsigned char>>::value
+				|| std::is_convertible<A, const char*>::value
+				|| is_unsigned_char_array<A>::value
+				, "Bencoded dictionary key must be a char*, an std::vector<unsigned char>"
+				", or an std::array<unsigned char, N>.");
+		}
+		template<typename Head> void assert_valid_key_types() {
+			assert_valid_key_type<Head>();
+		}
+		template<typename Head, typename Middle, typename... Tail>
+			void assert_valid_key_types() {
+			assert_valid_key_type<Head>();
+			assert_valid_key_types<Middle, Tail...>();
+		}
 	}
 
 	struct internal::bencode_token bdict_begin = {'d'};
@@ -28,24 +57,29 @@ namespace ebb {
 	struct internal::bencode_token blist_end = {'e'};
 
 	
-	template<typename... Arguments> std::tuple<Arguments...> k_v(Arguments&&... remaining) {
-		return std::forward_as_tuple(remaining...);
+	template<typename A, typename B> std::tuple<A, B> k_v(A &&a, B &&b) {
+		internal::assert_valid_key_type<A>();
+		return std::forward_as_tuple(a, b);
 	}
 
-	template<typename... Arguments> std::tuple<internal::bencode_token, Arguments..., internal::bencode_token> blist(Arguments&&... remaining) {
+	template<typename... Arguments> std::tuple<internal::bencode_token, Arguments...,
+		internal::bencode_token> blist(Arguments&&... remaining) {
 		return std::forward_as_tuple(blist_begin, remaining..., blist_end);
 	}
 
-	template<typename... Arguments> std::tuple<internal::bencode_token, Arguments..., internal::bencode_token> bdict(Arguments&&... remaining) {
+	template<typename... A, typename... B> std::tuple<internal::bencode_token,
+		std::tuple<A,B>..., internal::bencode_token> bdict(
+				std::tuple<A, B>&&... remaining) {
+		internal::assert_valid_key_types<A...>();
 		return std::forward_as_tuple(bdict_begin, remaining..., bdict_end);
 	}
 
 	class bencoder {
 		private:
 			unsigned char* buffer;
-			long long len;
+			int64_t len;
 		public:
-			bencoder(unsigned char* buffer, long long len = -1):
+			bencoder(unsigned char* buffer, int64_t len = -1):
 				buffer(buffer), len(len) {};
 			template<typename... Arguments> unsigned char* operator()
 				(Arguments&&... remaining) {
@@ -58,8 +92,10 @@ namespace ebb {
 				return buffer;
 			}
 
-			template<typename... Arguments> unsigned char* bencode(long long value, Arguments&&... remaining) {
-				long written = snprintf(reinterpret_cast<char*>(buffer), len, "i%llie", value);
+			template<typename... Arguments> unsigned char* bencode(int64_t value,
+					Arguments&&... remaining) {
+				long written = snprintf(reinterpret_cast<char*>(buffer), len,
+						"i%" PRId64 "e", value);
 				if (written > len) {
 					buffer = NULL;
 					return NULL;
@@ -69,8 +105,10 @@ namespace ebb {
 				return bencode(remaining...);
 			}
 
-			template<typename... Arguments> unsigned char* bencode(char const *value, Arguments&&... remaining) {
-				long written = snprintf(reinterpret_cast<char*>(buffer), len, "%lu:%s", strlen(value), value);
+			template<typename... Arguments> unsigned char* bencode(char const *value,
+					Arguments&&... remaining) {
+				long written = snprintf(reinterpret_cast<char*>(buffer), len, "%lu:%s",
+						strlen(value), value);
 				if (written > len) {
 					buffer = NULL;
 					return NULL;
@@ -80,8 +118,10 @@ namespace ebb {
 				return bencode(remaining...);
 			}
 
-			template<typename... Arguments> unsigned char* bencode(std::vector<unsigned char> const &value, Arguments&&... remaining) {
-				long written = snprintf(reinterpret_cast<char*>(buffer), len, "%lu:", value.size());
+			template<typename... Arguments> unsigned char* bencode(
+					std::vector<unsigned char> const &value, Arguments&&... remaining) {
+				long written = snprintf(reinterpret_cast<char*>(buffer), len, "%lu:",
+						value.size());
 				if (written + value.size() > len) {
 					buffer = NULL;
 					return NULL;
@@ -92,7 +132,8 @@ namespace ebb {
 				return bencode(remaining...);
 			}
 
-			template<size_t N, typename... Arguments> unsigned char* bencode(std::array<unsigned char, N> const &value, Arguments&&... remaining) {
+			template<size_t N, typename... Arguments> unsigned char* bencode(
+					std::array<unsigned char, N> const &value, Arguments&&... remaining) {
 				long written = snprintf(reinterpret_cast<char*>(buffer), len, "%lu:", N);
 				if (written + N > len) {
 					buffer = NULL;
@@ -104,7 +145,8 @@ namespace ebb {
 				return bencode(remaining...);
 			}
 
-			template<typename... Arguments> unsigned char* bencode(internal::bencode_token const value, Arguments&&... remaining) {
+			template<typename... Arguments> unsigned char* bencode(
+					internal::bencode_token const value, Arguments&&... remaining) {
 				if (len == 0) {
 					buffer = NULL;
 					return NULL;
@@ -115,11 +157,16 @@ namespace ebb {
 				return bencode(remaining...);
 			}
 
-			template<typename... TupleTypes, typename... Arguments> unsigned char* bencode(std::tuple<TupleTypes...> const &value, Arguments... remaining) {
-				return bencode(typename internal::gen_seq<sizeof...(TupleTypes)>::type(), value, remaining...);
+			template<typename... TupleTypes, typename... Arguments>
+				unsigned char* bencode(std::tuple<TupleTypes...> const &value,
+						Arguments... remaining) {
+				return bencode(typename internal::gen_seq<sizeof...(TupleTypes)>::type(),
+						value, remaining...);
 			}
 
-			template<int... S, typename... TupleTypes, typename... Arguments> unsigned char* bencode(internal::seq<S...>, std::tuple<TupleTypes...> const &value, Arguments... remaining) {
+			template<int... S, typename... TupleTypes, typename... Arguments>
+				unsigned char* bencode(internal::seq<S...>,
+						std::tuple<TupleTypes...> const &value, Arguments... remaining) {
 				return bencode(std::get<S>(value)..., remaining...);
 			}
 	};

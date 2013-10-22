@@ -18,15 +18,18 @@ Sample syntax showcasing most of the features:
 		std::vector<unsigned char> data2 = {{'h', 'i', 'j'}};
 		unsigned char* last = bencoder(output, 1024)(
 				bdict(
-					// k_v is optional for clarity
 					k_v("a", "b"),
-					1, 2,
+					k_v("1", 2),
 					k_v("list", blist("a", "b", "c", "d", data1, data2))
 					)
 				);
 		assert(last);
 		*last = '\0';
-		// will print "d1:a1:bi1ei2e4:listl1:a1:b1:c1:d3:efg3:hijee"
+		// will print "d1:a1:b1:1i2e4:listl1:a1:b1:c1:d3:efg3:hijee"
 		printf(reinterpret_cast<const char*>(output));
 		return 0;
 	}
+
+Acknowledgements
+----------------
+* Arvid Norberg, for template metaprogramming advice and catching portability issues

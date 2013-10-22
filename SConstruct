@@ -1,6 +1,6 @@
 import os
 
-cflags = '-Os -save-temps -Wall -DGTEST_USE_OWN_TR1_TUPLE'
+cflags = '-Os -save-temps -fno-rtti -Wall -DGTEST_USE_OWN_TR1_TUPLE'
 include_tests = ['./', 'vendor/gtest-1.7.0/include', 'vendor/gtest-1.7.0']
 
 env = Environment(

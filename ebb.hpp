@@ -10,6 +10,7 @@
 #include <array>
 #include <tuple>
 #include <vector>
+#include <string>
 
 namespace ebb {
 	namespace internal {
@@ -37,6 +38,7 @@ namespace ebb {
 		template<typename A> void assert_valid_key_type() {
 			static_assert(std::is_convertible<A, std::vector<unsigned char>>::value
 				|| std::is_convertible<A, const char*>::value
+				|| std::is_convertible<A, std::string>::value
 				|| is_unsigned_char_array<A>::value
 				, "Bencoded dictionary key must be a char*, an std::vector<unsigned char>"
 				", or an std::array<unsigned char, N>.");
@@ -107,7 +109,7 @@ namespace ebb {
 
 			template<typename... Arguments> unsigned char* bencode(char const *value,
 					Arguments&&... remaining) {
-				long written = snprintf(reinterpret_cast<char*>(buffer), len, "%lu:%s",
+				long written = snprintf(reinterpret_cast<char*>(buffer), len, "%zu:%s",
 						strlen(value), value);
 				if (written > len) {
 					buffer = NULL;
@@ -120,13 +122,27 @@ namespace ebb {
 
 			template<typename... Arguments> unsigned char* bencode(
 					std::vector<unsigned char> const &value, Arguments&&... remaining) {
-				long written = snprintf(reinterpret_cast<char*>(buffer), len, "%lu:",
+				long written = snprintf(reinterpret_cast<char*>(buffer), len, "%zu:",
 						value.size());
 				if (written + value.size() > len) {
 					buffer = NULL;
 					return NULL;
 				}
-				memcpy(buffer + written, &(value[0]), value.size());
+				std::memcpy(buffer + written, &(value[0]), value.size());
+				buffer += written + value.size();
+				len -= written + value.size();
+				return bencode(remaining...);
+			}
+
+			template<typename... Arguments> unsigned char* bencode(
+					std::string const &value, Arguments&&... remaining) {
+				long written = snprintf(reinterpret_cast<char*>(buffer), len, "%zu:",
+						value.size());
+				if (written + value.size() > len) {
+					buffer = NULL;
+					return NULL;
+				}
+				std::memcpy(buffer + written, &(value[0]), value.size());
 				buffer += written + value.size();
 				len -= written + value.size();
 				return bencode(remaining...);
@@ -134,12 +150,12 @@ namespace ebb {
 
 			template<size_t N, typename... Arguments> unsigned char* bencode(
 					std::array<unsigned char, N> const &value, Arguments&&... remaining) {
-				long written = snprintf(reinterpret_cast<char*>(buffer), len, "%lu:", N);
+				long written = snprintf(reinterpret_cast<char*>(buffer), len, "%zu:", N);
 				if (written + N > len) {
 					buffer = NULL;
 					return NULL;
 				}
-				memcpy(buffer + written, &(value[0]), N);
+				std::memcpy(buffer + written, &(value[0]), N);
 				buffer += written + N;
 				len -= written + N;
 				return bencode(remaining...);

@@ -53,10 +53,10 @@ namespace ebb {
 		}
 	}
 
-	struct internal::bencode_token bdict_begin = {'d'};
-	struct internal::bencode_token bdict_end = {'e'};
-	struct internal::bencode_token blist_begin = {'l'};
-	struct internal::bencode_token blist_end = {'e'};
+	const static internal::bencode_token bdict_begin = {'d'};
+	const static internal::bencode_token bdict_end = {'e'};
+	const static internal::bencode_token blist_begin = {'l'};
+	const static internal::bencode_token blist_end = {'e'};
 
 	
 	template<typename A, typename B> std::tuple<A, B> k_v(A &&a, B &&b) {

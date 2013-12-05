@@ -10,6 +10,7 @@
 #include <array>
 #include <tuple>
 #include <vector>
+#include <cstring>
 #include <string>
 
 namespace ebb {

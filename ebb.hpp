@@ -38,6 +38,7 @@ namespace ebb {
 			const std::array<unsigned char, N>&> : std::true_type {};
 		template<typename A> void assert_valid_key_type() {
 			static_assert(std::is_convertible<A, std::vector<unsigned char>>::value
+				|| std::is_convertible<A, std::vector<char>>::value
 				|| std::is_convertible<A, const char*>::value
 				|| std::is_convertible<A, std::string>::value
 				|| is_unsigned_char_array<A>::value
@@ -129,7 +130,21 @@ namespace ebb {
 					buffer = NULL;
 					return NULL;
 				}
-				std::memcpy(buffer + written, &(value[0]), value.size());
+				std::memcpy(buffer + written, &value[0], value.size());
+				buffer += written + value.size();
+				len -= written + value.size();
+				return bencode(remaining...);
+			}
+
+			template<typename... Arguments> unsigned char* bencode(
+					std::vector<char> const &value, Arguments&&... remaining) {
+				long written = snprintf(reinterpret_cast<char*>(buffer), len, "%zu:",
+						value.size());
+				if (written + value.size() > len) {
+					buffer = NULL;
+					return NULL;
+				}
+				std::memcpy(buffer + written, (unsigned char*)&value[0], value.size());
 				buffer += written + value.size();
 				len -= written + value.size();
 				return bencode(remaining...);

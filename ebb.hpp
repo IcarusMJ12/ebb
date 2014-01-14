@@ -111,7 +111,7 @@ namespace ebb {
 
 			template<typename... Arguments> unsigned char* bencode(char const *value,
 					Arguments&&... remaining) {
-				long written = snprintf(reinterpret_cast<char*>(buffer), len, "%zu:%s",
+				long written = snprintf(reinterpret_cast<char*>(buffer), len, "%d:%s",
 						strlen(value), value);
 				if (written > len) {
 					buffer = NULL;

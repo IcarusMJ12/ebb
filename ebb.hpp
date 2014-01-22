@@ -124,8 +124,8 @@ namespace ebb {
 
 			template<typename... Arguments> unsigned char* bencode(
 					std::vector<unsigned char> const &value, Arguments&&... remaining) {
-				long written = snprintf(reinterpret_cast<char*>(buffer), len, "%zu:",
-						value.size());
+				long written = snprintf(reinterpret_cast<char*>(buffer), len, "%d:"
+						, int(value.size()));
 				if (written + value.size() > len) {
 					buffer = NULL;
 					return NULL;
@@ -138,8 +138,8 @@ namespace ebb {
 
 			template<typename... Arguments> unsigned char* bencode(
 					std::vector<char> const &value, Arguments&&... remaining) {
-				long written = snprintf(reinterpret_cast<char*>(buffer), len, "%zu:",
-						value.size());
+				long written = snprintf(reinterpret_cast<char*>(buffer), len, "%d:"
+						, int(value.size()));
 				if (written + value.size() > len) {
 					buffer = NULL;
 					return NULL;
@@ -152,8 +152,8 @@ namespace ebb {
 
 			template<typename... Arguments> unsigned char* bencode(
 					std::string const &value, Arguments&&... remaining) {
-				long written = snprintf(reinterpret_cast<char*>(buffer), len, "%zu:",
-						value.size());
+				long written = snprintf(reinterpret_cast<char*>(buffer), len, "%d:"
+						, int(value.size()));
 				if (written + value.size() > len) {
 					buffer = NULL;
 					return NULL;
@@ -166,7 +166,7 @@ namespace ebb {
 
 			template<size_t N, typename... Arguments> unsigned char* bencode(
 					std::array<unsigned char, N> const &value, Arguments&&... remaining) {
-				long written = snprintf(reinterpret_cast<char*>(buffer), len, "%zu:", N);
+				long written = snprintf(reinterpret_cast<char*>(buffer), len, "%d:", int(N));
 				if (written + N > len) {
 					buffer = NULL;
 					return NULL;

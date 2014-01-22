@@ -1,11 +1,15 @@
-exe unit_test
-	: # sources
-	tests/TestBencoder.cpp
-	vendor/gtest-1.7.0/src/gtest-all.cc
-	vendor/gtest-1.7.0/src/gtest_main.cc
-	: # requirements
+import testing ;
+
+project
+	: requirements
 	<include>.
-	<include>vendor/gtest-1.7.0/
+	<include>vendor/gtest-1.7.0
 	<include>vendor/gtest-1.7.0/include
+	<source>vendor/gtest-1.7.0/src/gtest-all.cc
+	<source>vendor/gtest-1.7.0/src/gtest_main.cc
+	;
+
+test-suite ebb-tests :
+	[ run tests/TestBencoder.cpp ]
 	;
 

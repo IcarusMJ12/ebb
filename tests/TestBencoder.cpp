@@ -1,6 +1,20 @@
 // Copyright (C) 2013 Igor Kaplounenko
 // Licensed under MIT License
 
+#ifdef _WIN32
+#include <stdarg.h>
+#include <stdio.h>
+inline int snprintf(char* buf, int len, char const* fmt, ...)
+{
+	va_list lp;
+	va_start(lp, fmt);
+	int ret = _vsnprintf(buf, len, fmt, lp);
+	va_end(lp);
+	if (ret < 0) { buf[len-1] = 0; ret = len+1; }
+	return ret;
+}
+#endif
+
 #include "ebb.hpp"
 
 #include "gtest/gtest.h"

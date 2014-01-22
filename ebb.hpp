@@ -12,6 +12,8 @@
 #include <vector>
 #include <cstring>
 #include <string>
+#include <cinttypes>
+#include <cstdint>
 
 namespace ebb {
 	namespace internal {
@@ -81,9 +83,9 @@ namespace ebb {
 	class bencoder {
 		private:
 			unsigned char* buffer;
-			int64_t len;
+			std::int64_t len;
 		public:
-			bencoder(unsigned char* buffer, int64_t len = -1):
+			bencoder(unsigned char* buffer, std::int64_t len = -1):
 				buffer(buffer), len(len) {};
 			template<typename... Arguments> unsigned char* operator()
 				(Arguments&&... remaining) {
@@ -96,7 +98,7 @@ namespace ebb {
 				return buffer;
 			}
 
-			template<typename... Arguments> unsigned char* bencode(int64_t value,
+			template<typename... Arguments> unsigned char* bencode(std::int64_t value,
 					Arguments&&... remaining) {
 				long written = snprintf(reinterpret_cast<char*>(buffer), len,
 						"i%" PRId64 "e", value);
@@ -166,7 +168,8 @@ namespace ebb {
 
 			template<size_t N, typename... Arguments> unsigned char* bencode(
 					std::array<unsigned char, N> const &value, Arguments&&... remaining) {
-				long written = snprintf(reinterpret_cast<char*>(buffer), len, "%d:", int(N));
+				long written = snprintf(reinterpret_cast<char*>(buffer), len
+					, "%" PRId64 ":", std::int64_t(N));
 				if (written + N > len) {
 					buffer = NULL;
 					return NULL;

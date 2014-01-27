@@ -1,5 +1,7 @@
 import testing ;
 
+lib pthread : : <name>pthread <link>shared ;
+
 project
 	: requirements
 	<include>.
@@ -7,6 +9,7 @@ project
 	<include>vendor/gtest-1.7.0/include
 	<source>vendor/gtest-1.7.0/src/gtest-all.cc
 	<source>vendor/gtest-1.7.0/src/gtest_main.cc
+	<target-os>linux:<library>pthread
 	;
 
 test-suite ebb-tests :

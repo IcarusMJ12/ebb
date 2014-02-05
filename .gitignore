@@ -4,3 +4,4 @@ a.out
 *.o
 *.dblite
 unit_tests
+bin

@@ -16,7 +16,7 @@
 #include <cstdint>
 
 namespace ebb {
-	namespace internal {
+	namespace detail {
 		// http://stackoverflow.com/questions/7858817/unpacking-a-tuple-to-call-a-matching-function-pointer?lq=1
 		template<int...> struct seq {};
 		template<int N, int... S> struct gen_seq : gen_seq<N-1, N-1, S...> {};
@@ -57,26 +57,26 @@ namespace ebb {
 		}
 	}
 
-	const static internal::bencode_token bdict_begin = {'d'};
-	const static internal::bencode_token bdict_end = {'e'};
-	const static internal::bencode_token blist_begin = {'l'};
-	const static internal::bencode_token blist_end = {'e'};
+	const static detail::bencode_token bdict_begin = {'d'};
+	const static detail::bencode_token bdict_end = {'e'};
+	const static detail::bencode_token blist_begin = {'l'};
+	const static detail::bencode_token blist_end = {'e'};
 
 	
 	template<typename A, typename B> std::tuple<A, B> k_v(A &&a, B &&b) {
-		internal::assert_valid_key_type<A>();
+		detail::assert_valid_key_type<A>();
 		return std::forward_as_tuple(a, b);
 	}
 
-	template<typename... Arguments> std::tuple<internal::bencode_token, Arguments...,
-		internal::bencode_token> blist(Arguments&&... remaining) {
+	template<typename... Arguments> std::tuple<detail::bencode_token, Arguments...,
+		detail::bencode_token> blist(Arguments&&... remaining) {
 		return std::forward_as_tuple(blist_begin, remaining..., blist_end);
 	}
 
-	template<typename... A, typename... B> std::tuple<internal::bencode_token,
-		std::tuple<A,B>..., internal::bencode_token> bdict(
+	template<typename... A, typename... B> std::tuple<detail::bencode_token,
+		std::tuple<A,B>..., detail::bencode_token> bdict(
 				std::tuple<A, B>&&... remaining) {
-		internal::assert_valid_key_types<A...>();
+		detail::assert_valid_key_types<A...>();
 		return std::forward_as_tuple(bdict_begin, remaining..., bdict_end);
 	}
 
@@ -181,7 +181,7 @@ namespace ebb {
 			}
 
 			template<typename... Arguments> unsigned char* bencode(
-					internal::bencode_token const value, Arguments&&... remaining) {
+					detail::bencode_token const value, Arguments&&... remaining) {
 				if (len == 0) {
 					buffer = NULL;
 					return NULL;
@@ -195,12 +195,12 @@ namespace ebb {
 			template<typename... TupleTypes, typename... Arguments>
 				unsigned char* bencode(std::tuple<TupleTypes...> const &value,
 						Arguments... remaining) {
-				return bencode(typename internal::gen_seq<sizeof...(TupleTypes)>::type(),
+				return bencode(typename detail::gen_seq<sizeof...(TupleTypes)>::type(),
 						value, remaining...);
 			}
 
 			template<int... S, typename... TupleTypes, typename... Arguments>
-				unsigned char* bencode(internal::seq<S...>,
+				unsigned char* bencode(detail::seq<S...>,
 						std::tuple<TupleTypes...> const &value, Arguments... remaining) {
 				return bencode(std::get<S>(value)..., remaining...);
 			}

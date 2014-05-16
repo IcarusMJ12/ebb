@@ -1,6 +1,6 @@
 #pragma once
 // expressly better bencoder
-// Copyright (C) 2013 Igor Kaplounenko
+// Copyright (C) 2013-2014 Igor Kaplounenko
 // Licensed under MIT License
 
 #include <array>
@@ -12,6 +12,14 @@
 #include <string>
 #include <tuple>
 #include <vector>
+
+#ifndef PRId64
+#if defined MSC_VER || defined __MINGW32_
+#define PRId64 "I64d"
+#else
+#define PRId64 "lld"
+#endif
+#endif
 
 namespace ebb {
 	namespace detail {

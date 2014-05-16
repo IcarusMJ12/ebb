@@ -21,10 +21,6 @@ inline int snprintf(char* buf, int len, char const* fmt, ...)
 
 using namespace ebb;
 
-const char* get_test_string() {
-	return "this is some string";
-};
-
 TEST(ebb, integer) {
 	unsigned char output[1024];
 	unsigned char* last = bencoder(output, 1024)(
@@ -64,6 +60,16 @@ TEST(ebb, string_bounds) {
 TEST(ebb, array) {
 	unsigned char output[1024];
 	std::array<unsigned char, 3> data1 = {{'\1', '\0', '\2'}};
+	unsigned char* last = bencoder(output, 1024)(
+			data1
+			);
+	ASSERT_NE(static_cast<unsigned char*>(NULL), last);
+	EXPECT_EQ(0, memcmp("3:\x01\x00\x02", output, 3));
+}
+
+TEST(ebb, const_array) {
+	unsigned char output[1024];
+	std::array<const unsigned char, 3> data1 = {{'\1', '\0', '\2'}};
 	unsigned char* last = bencoder(output, 1024)(
 			data1
 			);
@@ -157,12 +163,6 @@ TEST(ebb, multiple_writes) {
 	EXPECT_STREQ("l3:abc3:defe", reinterpret_cast<const char*>(output));
 }
 
-TEST(ebb, string_function) {
-	unsigned char output[1024];
-	unsigned char* last = bencoder(output, 1024)(get_test_string());
-	ASSERT_NE(static_cast<unsigned char*>(NULL), last);
-}
-
 TEST(ebb, fancy) {
 	unsigned char output[1024];
 	std::array<unsigned char, 3> data1 = {{'e', 'f', 'g'}};
@@ -178,4 +178,21 @@ TEST(ebb, fancy) {
 	EXPECT_NE(static_cast<unsigned char*>(NULL), last);
 	*last = '\0';
 	EXPECT_STREQ(expected, reinterpret_cast<const char*>(output));
+}
+
+TEST(ebb, array_constructor) {
+	std::array<unsigned char, 1024> output;
+	std::array<unsigned char, 3> data1 = {{'e', 'f', 'g'}};
+	std::vector<unsigned char> data2 = {{'h', 'i', 'j'}};
+	const char* expected = "d1:a1:b1:1i2e4:listl1:a1:b1:c1:d3:efg3:hijee";
+	unsigned char* last = bencoder(output)(
+			bdict(
+				k_v("a", "b"),
+				k_v("1", 2),
+				k_v("list", blist("a", "b", "c", "d", data1, data2))
+				)
+			);
+	EXPECT_NE(static_cast<unsigned char*>(NULL), last);
+	*last = '\0';
+	EXPECT_STREQ(expected, reinterpret_cast<const char*>(output.data()));
 }

@@ -3,17 +3,15 @@
 // Copyright (C) 2013 Igor Kaplounenko
 // Licensed under MIT License
 
+#include <array>
+#include <cassert>
 #include <cinttypes>
 #include <cstdint>
-#include <cassert>
 #include <cstdio>
-#include <array>
-#include <tuple>
-#include <vector>
 #include <cstring>
 #include <string>
-#include <cinttypes>
-#include <cstdint>
+#include <tuple>
+#include <vector>
 
 namespace ebb {
 	namespace detail {
@@ -83,10 +81,11 @@ namespace ebb {
 	class bencoder {
 		private:
 			unsigned char* buffer;
-			std::int64_t len;
+			size_t len;
 		public:
-			bencoder(unsigned char* buffer, std::int64_t len = -1):
-				buffer(buffer), len(len) {};
+			bencoder(unsigned char* buffer, size_t len) : buffer(buffer), len(len) {};
+			template<size_t Size> bencoder(std::array<unsigned char, Size>& buffer) :
+				buffer(buffer.data()), len(buffer.size()) {};
 			template<typename... Arguments> unsigned char* operator()
 				(Arguments&&... remaining) {
 					assert(buffer);
@@ -113,8 +112,8 @@ namespace ebb {
 
 			template<typename... Arguments> unsigned char* bencode(char const *value,
 					Arguments&&... remaining) {
-				long written = snprintf(reinterpret_cast<char*>(buffer), len, "%d:%s",
-						int(strlen(value)), value);
+				long written = snprintf(reinterpret_cast<char*>(buffer), len,
+						"%" PRId64 ":%s", std::int64_t(strlen(value)), value);
 				if (written > len) {
 					buffer = NULL;
 					return NULL;
@@ -126,58 +125,28 @@ namespace ebb {
 
 			template<typename... Arguments> unsigned char* bencode(
 					std::vector<unsigned char> const &value, Arguments&&... remaining) {
-				long written = snprintf(reinterpret_cast<char*>(buffer), len, "%d:"
-						, int(value.size()));
-				if (written + value.size() > len) {
-					buffer = NULL;
-					return NULL;
-				}
-				std::memcpy(buffer + written, &value[0], value.size());
-				buffer += written + value.size();
-				len -= written + value.size();
-				return bencode(remaining...);
+				return bencode_listish(value, remaining...);
 			}
 
 			template<typename... Arguments> unsigned char* bencode(
 					std::vector<char> const &value, Arguments&&... remaining) {
-				long written = snprintf(reinterpret_cast<char*>(buffer), len, "%d:"
-						, int(value.size()));
-				if (written + value.size() > len) {
-					buffer = NULL;
-					return NULL;
-				}
-				std::memcpy(buffer + written, (unsigned char*)&value[0], value.size());
-				buffer += written + value.size();
-				len -= written + value.size();
-				return bencode(remaining...);
+				return bencode_listish(value, remaining...);
 			}
 
 			template<typename... Arguments> unsigned char* bencode(
 					std::string const &value, Arguments&&... remaining) {
-				long written = snprintf(reinterpret_cast<char*>(buffer), len, "%d:"
-						, int(value.size()));
-				if (written + value.size() > len) {
-					buffer = NULL;
-					return NULL;
-				}
-				std::memcpy(buffer + written, &(value[0]), value.size());
-				buffer += written + value.size();
-				len -= written + value.size();
-				return bencode(remaining...);
+				return bencode_listish(value, remaining...);
+			}
+
+			template<size_t N, typename... Arguments> unsigned char* bencode(
+					std::array<const unsigned char, N> const &value,
+					Arguments&&... remaining) {
+				return bencode_listish(value, remaining...);
 			}
 
 			template<size_t N, typename... Arguments> unsigned char* bencode(
 					std::array<unsigned char, N> const &value, Arguments&&... remaining) {
-				long written = snprintf(reinterpret_cast<char*>(buffer), len
-					, "%" PRId64 ":", std::int64_t(N));
-				if (written + N > len) {
-					buffer = NULL;
-					return NULL;
-				}
-				std::memcpy(buffer + written, &(value[0]), N);
-				buffer += written + N;
-				len -= written + N;
-				return bencode(remaining...);
+				return bencode_listish(value, remaining...);
 			}
 
 			template<typename... Arguments> unsigned char* bencode(
@@ -203,6 +172,24 @@ namespace ebb {
 				unsigned char* bencode(detail::seq<S...>,
 						std::tuple<TupleTypes...> const &value, Arguments... remaining) {
 				return bencode(std::get<S>(value)..., remaining...);
+			}
+			
+			template<typename T, typename... Arguments>
+			unsigned char* bencode_listish(T const& value, Arguments&&... remaining) {
+				if (value.size() > INT64_MAX) {
+					buffer = NULL;
+					return NULL;
+				}
+				long written = snprintf(reinterpret_cast<char*>(buffer), len,
+						"%" PRId64 ":" , std::int64_t(value.size()));
+				if (written + value.size() > len) {
+					buffer = NULL;
+					return NULL;
+				}
+				std::memcpy(buffer + written, &value[0], value.size());
+				buffer += written + value.size();
+				len -= written + value.size();
+				return bencode(remaining...);
 			}
 	};
 }

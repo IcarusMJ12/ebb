@@ -5,9 +5,6 @@ Just include ebb.hpp in your project and use the provided API to serialize your 
 
 Sample syntax showcasing most of the features:
 
-	#include <cassert>
-	#include <cstdio>
-	
 	#include "ebb.hpp"
 	
 	using namespace ebb;
@@ -16,7 +13,7 @@ Sample syntax showcasing most of the features:
 		unsigned char output[1024];
 		std::array<unsigned char, 3> data1 = {{'e', 'f', 'g'}};
 		std::vector<unsigned char> data2 = {{'h', 'i', 'j'}};
-		unsigned char* last = bencoder(output, 1024)(
+		unsigned char* last = bencoder(output, sizeof(output))(
 				bdict(
 					k_v("a", "b"),
 					k_v("1", 2),

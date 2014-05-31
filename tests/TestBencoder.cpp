@@ -21,7 +21,17 @@ inline int snprintf(char* buf, int len, char const* fmt, ...)
 
 using namespace ebb;
 
-TEST(ebb, integer) {
+EBB_MAKE_BENCODED_DICT(benc_dict,
+		(std::array<unsigned char, 1>, array)
+		(int, integer)
+		(std::int64_t, integer64)
+		(std::string, string)
+		(std::vector<unsigned char>, vector))
+
+EBB_MAKE_BENCODED_DICT(benc_dict_nested,
+		(std::array<benc_dict, 2>, dicts))
+
+TEST(bencode, integer) {
 	unsigned char output[1024];
 	unsigned char* last = bencoder(output, 1024)(
 			3000ll
@@ -31,7 +41,7 @@ TEST(ebb, integer) {
 	EXPECT_STREQ("i3000e", reinterpret_cast<char*>(output));
 }
 
-TEST(ebb, integer_bounds) {
+TEST(bencode, integer_bounds) {
 	unsigned char output[4];
 	unsigned char* last = bencoder(output, 4)(
 			3000ll
@@ -39,7 +49,7 @@ TEST(ebb, integer_bounds) {
 	EXPECT_EQ(static_cast<unsigned char*>(NULL), last);
 }
 
-TEST(ebb, string) {
+TEST(bencode, string) {
 	unsigned char output[1024];
 	unsigned char* last = bencoder(output, 1024)(
 			"asdf"
@@ -49,7 +59,7 @@ TEST(ebb, string) {
 	EXPECT_STREQ("4:asdf", reinterpret_cast<char*>(output));
 }
 
-TEST(ebb, string_bounds) {
+TEST(bencode, string_bounds) {
 	unsigned char output[4];
 	unsigned char* last = bencoder(output, 4)(
 			"asdf"
@@ -57,7 +67,7 @@ TEST(ebb, string_bounds) {
 	EXPECT_EQ(static_cast<unsigned char*>(NULL), last);
 }
 
-TEST(ebb, array) {
+TEST(bencode, array) {
 	unsigned char output[1024];
 	std::array<unsigned char, 3> data1 = {{'\1', '\0', '\2'}};
 	unsigned char* last = bencoder(output, 1024)(
@@ -67,7 +77,7 @@ TEST(ebb, array) {
 	EXPECT_EQ(0, memcmp("3:\x01\x00\x02", output, 3));
 }
 
-TEST(ebb, const_array) {
+TEST(bencode, const_array) {
 	unsigned char output[1024];
 	std::array<const unsigned char, 3> data1 = {{'\1', '\0', '\2'}};
 	unsigned char* last = bencoder(output, 1024)(
@@ -77,7 +87,7 @@ TEST(ebb, const_array) {
 	EXPECT_EQ(0, memcmp("3:\x01\x00\x02", output, 3));
 }
 
-TEST(ebb, array_bounds) {
+TEST(bencode, array_bounds) {
 	unsigned char output[4];
 	std::array<unsigned char, 3> data1 = {{'\1', '\0', '\2'}};
 	unsigned char* last = bencoder(output, 4)(
@@ -86,7 +96,7 @@ TEST(ebb, array_bounds) {
 	EXPECT_EQ(static_cast<unsigned char*>(NULL), last);
 }
 
-TEST(ebb, vector) {
+TEST(bencode, vector) {
 	unsigned char output[1024];
 	std::vector<unsigned char> data1 = {{'\1', '\0', '\2'}};
 	unsigned char* last = bencoder(output, 1024)(
@@ -96,7 +106,7 @@ TEST(ebb, vector) {
 	EXPECT_EQ(0, memcmp("3:\x01\x00\x02", output, 3));
 }
 
-TEST(ebb, vector_bounds) {
+TEST(bencode, vector_bounds) {
 	unsigned char output[4];
 	std::vector<unsigned char> data1 = {{'\1', '\0', '\2'}};
 	unsigned char* last = bencoder(output, 4)(
@@ -105,7 +115,7 @@ TEST(ebb, vector_bounds) {
 	EXPECT_EQ(static_cast<unsigned char*>(NULL), last);
 }
 
-TEST(ebb, list) {
+TEST(bencode, list) {
 	unsigned char output[1024];
 	unsigned char* last = bencoder(output, 1024)(
 			blist(
@@ -117,7 +127,7 @@ TEST(ebb, list) {
 	EXPECT_STREQ("l1:a1:b1:c1:de", reinterpret_cast<const char*>(output));
 }
 
-TEST(ebb, dict) {
+TEST(bencode, dict) {
 	unsigned char output[1024];
 	unsigned char* last = bencoder(output, 1024)(
 			bdict(
@@ -130,7 +140,7 @@ TEST(ebb, dict) {
 	EXPECT_STREQ("d1:1i2e1:31:4e", reinterpret_cast<const char*>(output));
 }
 
-TEST(ebb, key_types) {
+TEST(bencode, key_types) {
 	unsigned char output[1024];
 	const char* data0 = "abc";
 	char* data0_1 = const_cast<char*>(data0);
@@ -151,7 +161,7 @@ TEST(ebb, key_types) {
 	EXPECT_NE(static_cast<unsigned char*>(NULL), last);
 }
 
-TEST(ebb, multiple_writes) {
+TEST(bencode, multiple_writes) {
 	unsigned char output[1024];
 	const char* data0 = "abc";
 	const char* data1 = "def";
@@ -163,7 +173,7 @@ TEST(ebb, multiple_writes) {
 	EXPECT_STREQ("l3:abc3:defe", reinterpret_cast<const char*>(output));
 }
 
-TEST(ebb, fancy) {
+TEST(bencode, fancy) {
 	unsigned char output[1024];
 	std::array<unsigned char, 3> data1 = {{'e', 'f', 'g'}};
 	std::vector<unsigned char> data2 = {{'h', 'i', 'j'}};
@@ -180,7 +190,7 @@ TEST(ebb, fancy) {
 	EXPECT_STREQ(expected, reinterpret_cast<const char*>(output));
 }
 
-TEST(ebb, array_constructor) {
+TEST(bencode, array_constructor) {
 	std::array<unsigned char, 1024> output;
 	std::array<unsigned char, 3> data1 = {{'e', 'f', 'g'}};
 	std::vector<unsigned char> data2 = {{'h', 'i', 'j'}};
@@ -192,6 +202,46 @@ TEST(ebb, array_constructor) {
 				k_v("list", blist("a", "b", "c", "d", data1, data2))
 				)
 			);
+	EXPECT_NE(static_cast<unsigned char*>(NULL), last);
+	*last = '\0';
+	EXPECT_STREQ(expected, reinterpret_cast<const char*>(output.data()));
+}
+
+TEST(bencode, bencoded_dict) {
+	benc_dict d;
+	d.integer = 1;
+	d.integer64 = 2;
+	d.string = "3";
+	d.array[0] = '4';
+	d.vector.push_back('5');
+
+	const char* expected = "d7:integeri1e9:integer64i2e6:string1:35:array1:4"
+		"6:vector1:5e";
+
+	std::array<unsigned char, 1024> output;
+	unsigned char* last = d.bencode(output);
+	EXPECT_NE(static_cast<unsigned char*>(NULL), last);
+	*last = '\0';
+	EXPECT_STREQ(expected, reinterpret_cast<const char*>(output.data()));
+}
+
+TEST(bencode, bencoded_dict_nested) {
+	benc_dict_nested d;
+	for (auto& dict : d.dicts) {
+		dict.integer = 1;
+		dict.integer64 = 2;
+		dict.string = "3";
+		dict.array[0] = '4';
+		dict.vector.push_back('5');
+	}
+
+	const char* expected = "d5:dictsl"
+		"d7:integeri1e9:integer64i2e6:string1:35:array1:46:vector1:5e"
+		"d7:integeri1e9:integer64i2e6:string1:35:array1:46:vector1:5e"
+		"ee";
+
+	std::array<unsigned char, 1024> output;
+	unsigned char* last = d.bencode(output);
 	EXPECT_NE(static_cast<unsigned char*>(NULL), last);
 	*last = '\0';
 	EXPECT_STREQ(expected, reinterpret_cast<const char*>(output.data()));

@@ -215,7 +215,7 @@ TEST(bencode, bencoded_dict) {
 	d.array[0] = '4';
 	d.vector.push_back('5');
 
-	const char* expected = "d7:integeri1e9:integer64i2e6:string1:35:array1:4"
+	const char* expected = "d5:array1:47:integeri1e9:integer64i2e6:string1:3"
 		"6:vector1:5e";
 
 	std::array<unsigned char, 1024> output;
@@ -236,8 +236,8 @@ TEST(bencode, bencoded_dict_nested) {
 	}
 
 	const char* expected = "d5:dictsl"
-		"d7:integeri1e9:integer64i2e6:string1:35:array1:46:vector1:5e"
-		"d7:integeri1e9:integer64i2e6:string1:35:array1:46:vector1:5e"
+		"d5:array1:47:integeri1e9:integer64i2e6:string1:36:vector1:5e"
+		"d5:array1:47:integeri1e9:integer64i2e6:string1:36:vector1:5e"
 		"ee";
 
 	std::array<unsigned char, 1024> output;

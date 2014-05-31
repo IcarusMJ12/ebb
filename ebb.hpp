@@ -317,13 +317,14 @@ namespace ebb {
 				reinterpret_cast<char **>(&end), 10);
 		// we read nothing, or our string has a negative length, or the string
 		// extends past the end of the buffer
-		if (buffer == end || value_len < 0 || buffer + len < end + value_len + 1) {
+		if (buffer == end || *end != ':' || value_len < 0
+				|| buffer + len < end + value_len + 1) {
 			return NULL;
 		}
 		value.resize(value_len);
-		std::copy(end, end + value_len, value.begin());
+		std::copy(end + 1, end + value_len + 1, value.begin());
 		len -= (end + value_len + 1 - buffer);
-		return end + value_len;
+		return end + value_len + 1;
 	}
 
 	template<typename T> unsigned char const* bdecode(
@@ -332,17 +333,18 @@ namespace ebb {
 			return NULL;
 		}
 		buffer++;
+		len--;
 		value.clear();
 		while(*buffer != 'e') {
 			T element;
 			buffer = bdecode(buffer, len, element);
-			if (buffer == NULL) {
+			if (buffer == NULL || len == 0) {
 				value.clear();
 				return NULL;
 			}
 			value.push_back(element);
 		}
-		len++;
+		len--;
 		return buffer + 1;
 	}
 }

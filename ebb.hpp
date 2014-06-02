@@ -271,7 +271,9 @@ namespace ebb {
 				bencode(std::array<T, S> const& value, Arguments&&... remaining) {
 				bencode(blist_begin);
 				for(auto const& v : value) {
-					bencode(v);
+					if (bencode(v) == NULL) {
+						return NULL;
+					}
 				}
 				return bencode(blist_end, remaining...);
 			}
@@ -280,14 +282,17 @@ namespace ebb {
 				bencode(std::vector<T> const& value, Arguments&&... remaining) {
 				bencode(blist_begin);
 				for(auto const& v : value) {
-					bencode(v);
+					if (bencode(v) == NULL) {
+						return NULL;
+					}
 				}
 				return bencode(blist_end, remaining...);
 			}
 	};
 
-	inline unsigned char const* bdecode(unsigned char const* buffer, size_t &len,
-			std::int64_t &value) {
+	template<typename T> typename std::enable_if<std::is_integral<T>::value,
+		unsigned char const*>::type bdecode(unsigned char const* buffer,
+				size_t &len, T &value) {
 		// int has to start with 'i' and followed by at least one digit and 'e'
 		if (len < 3 || buffer[0] != 'i') {
 			return NULL;
@@ -295,21 +300,27 @@ namespace ebb {
 		unsigned char* end;
 		static_assert(sizeof(long long) == sizeof(std::int64_t),
 				"long long must be int64_t");
-		value = std::strtoll(reinterpret_cast<char const*>(buffer + 1),
+		std::int64_t val = std::strtoll(reinterpret_cast<char const*>(buffer + 1),
 				reinterpret_cast<char**>(&end), 10);
 		// we read nothing, or we read past the end of the buffer, or int is not
 		// terminated by 'e'
 		if (buffer + 1 == end || buffer + len <= end || *end != 'e') {
 			return NULL;
 		}
+		value = T(val);
+		if (value != val) {
+			return NULL;
+		}
 		len -= (end - buffer + 1);
 		return end + 1;
 	}
 
-	inline unsigned char const* bdecode(unsigned char const* buffer, size_t &len,
-			std::string &value) {
+	template<typename T> typename std::enable_if<
+		std::is_base_of<std::string, T>::value ||
+		std::is_base_of<std::vector<unsigned char>, T>::value,
+		unsigned char const*>::type bdecode(unsigned char const* buffer,
+				size_t &len, T &value) {
 		if (len < 2) {
-			buffer = NULL;
 			return NULL;
 		}
 		unsigned char* end;
@@ -327,7 +338,47 @@ namespace ebb {
 		return end + value_len + 1;
 	}
 
-	template<typename T> unsigned char const* bdecode(
+	template<size_t S> unsigned char const* bdecode(unsigned char const* buffer,
+			size_t &len, std::array<unsigned char, S> &value) {
+		if (len < 2) {
+			return NULL;
+		}
+		unsigned char* end;
+		std::int64_t value_len = std::strtoll(reinterpret_cast<char const*>(buffer),
+				reinterpret_cast<char **>(&end), 10);
+		// we read nothing, or our string has a negative length, or the string
+		// extends past the end of the buffer
+		if (buffer == end || *end != ':' || value_len < 0
+				|| buffer + len < end + value_len + 1 || value_len != value.size()) {
+			return NULL;
+		}
+		std::copy(end + 1, end + value_len + 1, value.begin());
+		len -= (end + value_len + 1 - buffer);
+		return end + value_len + 1;
+	}
+
+	template<typename T, size_t S> const unsigned char* bdecode(
+			unsigned char const* buffer, size_t &len, std::array<T, S> &value) {
+		if (len < 2 || *buffer != 'l') return NULL;
+		len--;
+		buffer++;
+		for (T& i : value) {
+			buffer = i.bdecode(buffer, len);
+			if (buffer == NULL) return NULL;
+		}
+		if (len == 0 || *buffer != 'e') return NULL;
+		len--;
+		return buffer + 1;
+	}
+
+	template<typename T> typename std::enable_if<std::is_base_of<
+		detail::bencoded_dict, T>::value, const unsigned char*>::type
+		bdecode(unsigned char const* buffer, size_t &len, T &value) {
+		return value.bdecode(buffer, len);
+	}
+
+	template<typename T> typename std::enable_if<!std::is_same<
+		T, unsigned char>::value, unsigned char const*>::type bdecode(
 			unsigned char const* buffer, size_t &len, std::vector<T> &value) {
 		if (len < 2 || *buffer != 'l') {
 			return NULL;
@@ -346,6 +397,26 @@ namespace ebb {
 		}
 		len--;
 		return buffer + 1;
+	}
+
+	inline unsigned char const* bdecode_expect(unsigned char const* buffer,
+			size_t &len, char const* value) {
+		if (len < 3) {
+			return NULL;
+		}
+		unsigned char* end;
+		std::int64_t value_len = std::strtoll(reinterpret_cast<char const*>(buffer),
+				reinterpret_cast<char **>(&end), 10);
+		// we read nothing, or our string has a negative length, or the string
+		// extends past the end of the buffer
+		if (buffer == end || *end != ':' || value_len < 0
+				|| buffer + len < end + value_len + 1
+				|| value_len != std::strlen(value)
+				|| (std::memcmp(end + 1, value, strlen(value)) != 0)) {
+			return NULL;
+		}
+		len -= (end + value_len + 1 - buffer);
+		return end + value_len + 1;
 	}
 }
 
@@ -397,9 +468,30 @@ namespace ebb {
 		return this->bencode(buffer.data(), buffer.size()); \
 	}
 
+#define EBB_BDECODE_NEXT(R, DATA, TUPLE) \
+	buf = ebb::bdecode_expect(buf, len, \
+			BOOST_PP_STRINGIZE(EBB_GET_ARG_NAME(TUPLE))); \
+	if (buf == NULL) return NULL; \
+	buf = ebb::bdecode(buf, len, EBB_GET_ARG_NAME(TUPLE)); \
+	if (buf == NULL) return NULL;
+
 #define EBB_MAKE_BDECODE(ATTRIBUTES) \
+	template<size_t S> unsigned char const* bdecode( \
+			std::array<unsigned char, S> const& buffer) { \
+		size_t len = buffer.size(); \
+		return bdecode(buffer.data(), len); \
+	} \
+	\
 	unsigned char const* bdecode(unsigned char const* buffer, size_t &len) { \
-		return NULL; \
+		unsigned char const* buf = buffer; \
+		if (len < 2 || *buf != 'd') return NULL; \
+		len--; \
+		buf++; \
+		BOOST_PP_SEQ_FOR_EACH(EBB_BDECODE_NEXT, 0, EBB_PARENIFY(ATTRIBUTES)) \
+		if (len == 0 || *buf != 'e') return NULL; \
+		len--; \
+		buf++; \
+		return buf; \
 	}
 
 /*	e.g.

@@ -23,6 +23,18 @@ inline int snprintf(char* buf, int len, char const* fmt, ...)
 
 using namespace ebb;
 
+EBB_MAKE_BENCODED_DICT(nested_dict,
+		(int, i))
+
+EBB_MAKE_BENCODED_DICT(various_dict,
+		(std::array<unsigned char, 3>, array)
+		(int, integer)
+		(std::int64_t, integer64)
+		(std::array<nested_dict, 3>, nested_array)
+		(std::vector<nested_dict>, nested_vector)
+		(std::string, string)
+		(std::vector<unsigned char>, vector))
+
 TEST(bdecode, integer) {
 	std::int64_t out;
 	const char* input = "i8e";
@@ -95,4 +107,40 @@ TEST(bdecode, vector_truncated) {
 
 	result = bdecode(UCAST(input), len, out);
 	EXPECT_FALSE(result);
+}
+
+TEST(bdecode, dict_various) {
+	std::array<unsigned char, 1024> buf;
+	unsigned char* last = bencoder(buf)(
+			bdict(
+				k_v("array", "abc"),
+				k_v("integer", 1),
+				k_v("integer64", 2),
+				k_v("nested_array", blist(
+						bdict(k_v("i", 7)),
+						bdict(k_v("i", 8)),
+						bdict(k_v("i", 9)))),
+				k_v("nested_vector", blist(
+						bdict(k_v("i", 5)),
+						bdict(k_v("i", 6)))),
+				k_v("string", "def"),
+				k_v("vector", "ghi")
+				));
+	assert(last != nullptr);
+	*last = '\0';
+
+	various_dict d;
+	const unsigned char* ret = d.bdecode(buf);
+	EXPECT_TRUE(ret);
+	EXPECT_FALSE(memcmp(d.array.data(), "abc", d.array.size()));
+	EXPECT_EQ(1, d.integer);
+	EXPECT_EQ(2, d.integer64);
+	EXPECT_EQ(7, d.nested_array[0].i);
+	EXPECT_EQ(8, d.nested_array[1].i);
+	EXPECT_EQ(9, d.nested_array[2].i);
+	ASSERT_EQ(2, d.nested_vector.size());
+	EXPECT_EQ(5, d.nested_vector[0].i);
+	EXPECT_EQ(6, d.nested_vector[1].i);
+	EXPECT_STREQ("def", d.string.c_str());
+	EXPECT_FALSE(memcmp(&d.vector[0], "ghi", d.vector.size()));
 }

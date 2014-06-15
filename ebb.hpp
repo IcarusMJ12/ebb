@@ -52,7 +52,8 @@ namespace ebb {
 		template<size_t...> struct seq {};
 		template<size_t N, size_t... S> struct gen_seq : gen_seq<N-1, N-1, S...> {};
 		// generated sequence specialization / endpoint
-		template<size_t... S> struct gen_seq<0, S...> { const static seq<S...> value; };
+		template<size_t... S> struct gen_seq<0, S...> {
+			static constexpr seq<S...> value = {}; };
 
 		// for enforcing lexicografic key order
 		constexpr bool is_less_than(char const* left, char const* right) {

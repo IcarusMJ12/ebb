@@ -1,4 +1,4 @@
-// Copyright (C) 2013 Igor Kaplounenko
+// Copyright (C) 2014 Igor Kaplounenko
 // Licensed under MIT License
 
 #ifdef _WIN32

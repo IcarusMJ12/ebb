@@ -49,10 +49,10 @@
 namespace ebb {
 	namespace detail {
 		// http://stackoverflow.com/questions/7858817/unpacking-a-tuple-to-call-a-matching-function-pointer?lq=1
-		template<int...> struct seq {};
-		template<int N, int... S> struct gen_seq : gen_seq<N-1, N-1, S...> {};
+		template<size_t...> struct seq {};
+		template<size_t N, size_t... S> struct gen_seq : gen_seq<N-1, N-1, S...> {};
 		// generated sequence specialization / endpoint
-		template<int... S> struct gen_seq<0, S...> { typedef seq<S...> type; };
+		template<size_t... S> struct gen_seq<0, S...> { const static seq<S...> value; };
 
 		// for enforcing lexicografic key order
 		constexpr bool is_less_than(char const* left, char const* right) {
@@ -238,11 +238,11 @@ namespace ebb {
 			template<typename... TupleTypes, typename... Arguments>
 				unsigned char* bencode(std::tuple<TupleTypes...> const &value,
 						Arguments... remaining) {
-				return bencode(typename detail::gen_seq<sizeof...(TupleTypes)>::type(),
+				return bencode(detail::gen_seq<sizeof...(TupleTypes)>::value,
 						value, remaining...);
 			}
 
-			template<int... S, typename... TupleTypes, typename... Arguments>
+			template<size_t... S, typename... TupleTypes, typename... Arguments>
 				unsigned char* bencode(detail::seq<S...>,
 						std::tuple<TupleTypes...> const &value, Arguments... remaining) {
 				return bencode(std::get<S>(value)..., remaining...);

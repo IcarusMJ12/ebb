@@ -22,9 +22,6 @@
 #define BOOST_PP_VARIADICS 1
 #endif 
 #include <boost/preprocessor/arithmetic/dec.hpp>
-#include <boost/preprocessor/comparison/not_equal.hpp>
-#include <boost/preprocessor/control/iif.hpp>
-#include <boost/preprocessor/facilities/empty.hpp>
 #include <boost/preprocessor/punctuation/comma_if.hpp>
 #include <boost/preprocessor/seq/cat.hpp>
 #include <boost/preprocessor/seq/first_n.hpp>
@@ -46,6 +43,8 @@
 #endif
 #endif
 
+#include "escaped_array.hpp"
+
 namespace ebb {
 	namespace detail {
 		// http://stackoverflow.com/questions/7858817/unpacking-a-tuple-to-call-a-matching-function-pointer?lq=1
@@ -55,18 +54,12 @@ namespace ebb {
 		template<size_t... S> struct gen_seq<0, S...> {
 			static constexpr seq<S...> value = {}; };
 
-		// for enforcing lexicografic key order
-		constexpr bool is_less_than(char const* left, char const* right) {
-			return (*left < *right ||
-					(*left == *right && *left && is_less_than(left+1, right+1)));
-		}
-
 		constexpr bool is_valid_key_order(char const* remaining) { return true; }
 
 		template<typename... T>
 		constexpr bool is_valid_key_order(char const* left, char const* right,
 				T... remaining) {
-			return is_less_than(left, right) ?
+			return is_escaped_less_than(left, right) ?
 				is_valid_key_order(right, remaining...) : false;
 		}
 
@@ -96,14 +89,24 @@ namespace ebb {
 			const std::array<unsigned char, N>> : std::true_type {};
 		template<size_t N> struct is_unsigned_char_array<
 			const std::array<unsigned char, N>&> : std::true_type {};
+		template<typename> struct is_char_array : std::false_type {};
+		template<size_t N> struct is_char_array<std::array<char, N>>
+			: std::true_type {};
+		template<size_t N> struct is_char_array<std::array<char, N>&>
+			: std::true_type {};
+		template<size_t N> struct is_char_array<
+			const std::array<char, N>> : std::true_type {};
+		template<size_t N> struct is_char_array<
+			const std::array<char, N>&> : std::true_type {};
 		template<typename A> void assert_valid_key_type() {
 			static_assert(std::is_convertible<A, std::vector<unsigned char>>::value
 				|| std::is_convertible<A, std::vector<char>>::value
 				|| std::is_convertible<A, const char*>::value
 				|| std::is_convertible<A, std::string>::value
+				|| is_char_array<A>::value
 				|| is_unsigned_char_array<A>::value
 				, "Bencoded dictionary key must be a char*, an std::vector<unsigned char>"
-				", or an std::array<unsigned char, N>.");
+				", an std::array<char, N>, or an std::array<unsigned char, N>");
 		}
 		template<typename Head> void assert_valid_key_types() {
 			assert_valid_key_type<Head>();
@@ -221,6 +224,16 @@ namespace ebb {
 
 			template<size_t N, typename... Arguments> unsigned char* bencode(
 					std::array<unsigned char, N> const &value, Arguments&&... remaining) {
+				return bencode_listish(value, remaining...);
+			}
+
+			template<size_t N, typename... Arguments> unsigned char* bencode(
+					std::array<char, N> const &value, Arguments&&... remaining) {
+				return bencode_listish(value, remaining...);
+			}
+
+			template<size_t N, typename... Arguments> unsigned char* bencode(
+					std::array<char const, N> const &value, Arguments&&... remaining) {
 				return bencode_listish(value, remaining...);
 			}
 
@@ -400,8 +413,9 @@ namespace ebb {
 		return buffer + 1;
 	}
 
+	template<size_t S>
 	inline unsigned char const* bdecode_expect(unsigned char const* buffer,
-			size_t &len, char const* value) {
+			size_t &len, std::array<char, S> const& value) {
 		if (len < 3) {
 			return NULL;
 		}
@@ -412,8 +426,8 @@ namespace ebb {
 		// extends past the end of the buffer
 		if (buffer == end || *end != ':' || value_len < 0
 				|| buffer + len < end + value_len + 1
-				|| value_len != std::strlen(value)
-				|| (std::memcmp(end + 1, value, strlen(value)) != 0)) {
+				|| value_len != value.size()
+				|| (std::memcmp(end + 1, value.data(), value.size()) != 0)) {
 			return NULL;
 		}
 		len -= (end + value_len + 1 - buffer);
@@ -437,13 +451,17 @@ namespace ebb {
 	BOOST_PP_TUPLE_ELEM(BOOST_PP_DEC(BOOST_PP_TUPLE_SIZE(TUPLE)), TUPLE)
 
 #define EBB_ENCODE_ARG(R, DATA, I, TUPLE) \
-	BOOST_PP_COMMA_IF(I) BOOST_PP_STRINGIZE(EBB_GET_ARG_NAME(TUPLE)) \
+	BOOST_PP_COMMA_IF(I) EBB_ESCAPE(BOOST_PP_STRINGIZE(EBB_GET_ARG_NAME(TUPLE))) \
 	BOOST_PP_COMMA() this->EBB_GET_ARG_NAME(TUPLE)
 
 #define EBB_STRINGIFY_ARG(R, DATA, I, TUPLE) \
 	BOOST_PP_COMMA_IF(I) BOOST_PP_STRINGIZE(EBB_GET_ARG_NAME(TUPLE))
 
 #define EBB_ATTR_DECL(R, DATA, TUPLE) \
+	static_assert(ebb::is_valid_escaped_string(\
+				BOOST_PP_STRINGIZE(EBB_GET_ARG_NAME(TUPLE))),\
+			BOOST_PP_STRINGIZE(EBB_GET_ARG_NAME(TUPLE))\
+			" is not a valid escaped string"); \
 	EBB_GET_ARG_TYPE(TUPLE) EBB_GET_ARG_NAME(TUPLE);
 
 #define EBB_MAKE_BENCODED_ATTRIBUTES(ATTRIBUTES) \
@@ -471,7 +489,7 @@ namespace ebb {
 
 #define EBB_BDECODE_NEXT(R, DATA, TUPLE) \
 	buf = ebb::bdecode_expect(buf, len, \
-			BOOST_PP_STRINGIZE(EBB_GET_ARG_NAME(TUPLE))); \
+			EBB_ESCAPE(BOOST_PP_STRINGIZE(EBB_GET_ARG_NAME(TUPLE)))); \
 	if (buf == NULL) return NULL; \
 	buf = ebb::bdecode(buf, len, EBB_GET_ARG_NAME(TUPLE)); \
 	if (buf == NULL) return NULL;

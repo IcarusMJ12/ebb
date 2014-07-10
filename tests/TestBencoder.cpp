@@ -1,4 +1,4 @@
-// Copyright (C) 2013 Igor Kaplounenko
+// Copyright (C) 2013-2014 Igor Kaplounenko
 // Licensed under MIT License
 
 #ifdef _WIN32
@@ -30,6 +30,9 @@ EBB_MAKE_BENCODED_DICT(benc_dict,
 
 EBB_MAKE_BENCODED_DICT(benc_dict_nested,
 		(std::array<benc_dict, 2>, dicts))
+
+EBB_MAKE_BENCODED_DICT(benc_dict_escaped,
+		(int, spacesQ20andQ20QQ))
 
 TEST(bencode, integer) {
 	unsigned char output[1024];
@@ -239,6 +242,19 @@ TEST(bencode, bencoded_dict_nested) {
 		"d5:array1:47:integeri1e9:integer64i2e6:string1:36:vector1:5e"
 		"d5:array1:47:integeri1e9:integer64i2e6:string1:36:vector1:5e"
 		"ee";
+
+	std::array<unsigned char, 1024> output;
+	unsigned char* last = d.bencode(output);
+	EXPECT_NE(static_cast<unsigned char*>(NULL), last);
+	*last = '\0';
+	EXPECT_STREQ(expected, reinterpret_cast<const char*>(output.data()));
+}
+
+TEST(bencode, bencoded_dict_escaped) {
+	benc_dict_escaped d;
+	d.spacesQ20andQ20QQ = 1;
+
+	const char* expected = "d12:spaces and Qi1ee";
 
 	std::array<unsigned char, 1024> output;
 	unsigned char* last = d.bencode(output);

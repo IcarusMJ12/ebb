@@ -35,6 +35,9 @@ EBB_MAKE_BENCODED_DICT(various_dict,
 		(std::string, string)
 		(std::vector<unsigned char>, vector))
 
+EBB_MAKE_BENCODED_DICT(benc_dict_escaped,
+		(int, spacesQ20andQ20QQ))
+
 TEST(bdecode, integer) {
 	std::int64_t out;
 	const char* input = "i8e";
@@ -143,4 +146,19 @@ TEST(bdecode, dict_various) {
 	EXPECT_EQ(6, d.nested_vector[1].i);
 	EXPECT_STREQ("def", d.string.c_str());
 	EXPECT_FALSE(memcmp(&d.vector[0], "ghi", d.vector.size()));
+}
+
+TEST(bdecode, dict_escaped) {
+	std::array<unsigned char, 1024> buf;
+	unsigned char* last = bencoder(buf)(
+			bdict(
+				k_v("spaces and Q", 1)
+				));
+	assert(last != nullptr);
+	*last = '\0';
+
+	benc_dict_escaped d;
+	const unsigned char* ret = d.bdecode(buf);
+	EXPECT_TRUE(ret);
+	EXPECT_EQ(1, d.spacesQ20andQ20QQ);
 }

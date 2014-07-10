@@ -38,6 +38,9 @@ EBB_MAKE_BENCODED_DICT(various_dict,
 EBB_MAKE_BENCODED_DICT(benc_dict_escaped,
 		(int, spacesQ20andQ20QQ))
 
+EBB_MAKE_BENCODED_DICT(benc_dict_map,
+		(std::map<std::string, std::string>, something))
+
 TEST(bdecode, integer) {
 	std::int64_t out;
 	const char* input = "i8e";
@@ -161,4 +164,22 @@ TEST(bdecode, dict_escaped) {
 	const unsigned char* ret = d.bdecode(buf);
 	EXPECT_TRUE(ret);
 	EXPECT_EQ(1, d.spacesQ20andQ20QQ);
+}
+
+TEST(bdecode, dict_map) {
+	std::array<unsigned char, 1024> buf;
+	unsigned char* last = bencoder(buf)(
+			bdict(
+				k_v("something", bdict(
+						k_v("one", "two"),
+						k_v("three", "four")
+						))));
+	assert(last != nullptr);
+	*last = '\0';
+
+	benc_dict_map d;
+	const unsigned char* ret = d.bdecode(buf);
+	EXPECT_TRUE(ret);
+	EXPECT_TRUE(d.something["one"] == "two");
+	EXPECT_TRUE(d.something["three"] == "four");
 }

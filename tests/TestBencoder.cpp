@@ -34,6 +34,9 @@ EBB_MAKE_BENCODED_DICT(benc_dict_nested,
 EBB_MAKE_BENCODED_DICT(benc_dict_escaped,
 		(int, spacesQ20andQ20QQ))
 
+EBB_MAKE_BENCODED_DICT(benc_dict_map,
+		(std::map<std::string, std::string>, something))
+
 TEST(bencode, integer) {
 	unsigned char output[1024];
 	unsigned char* last = bencoder(output, 1024)(
@@ -259,6 +262,29 @@ TEST(bencode, bencoded_dict_escaped) {
 	std::array<unsigned char, 1024> output;
 	unsigned char* last = d.bencode(output);
 	EXPECT_NE(static_cast<unsigned char*>(NULL), last);
+	*last = '\0';
+	EXPECT_STREQ(expected, reinterpret_cast<const char*>(output.data()));
+}
+
+TEST(bencode, map) {
+	std::map<std::string, std::string> m = { {"three", "four"}, {"one", "two"} };
+	const char* expected = "d3:one3:two5:three4:foure";
+
+	std::array<unsigned char, 1024> output;
+	unsigned char* last = bencoder(output)(m);
+	ASSERT_NE(static_cast<unsigned char*>(NULL), last);
+	*last = '\0';
+	EXPECT_STREQ(expected, reinterpret_cast<const char*>(output.data()));
+}
+
+TEST(bencode, bencoded_dict_map) {
+	benc_dict_map d;
+	d.something = { {"three", "four"}, {"one", "two"} };
+	const char* expected = "d9:somethingd3:one3:two5:three4:fouree";
+
+	std::array<unsigned char, 1024> output;
+	unsigned char* last = d.bencode(output);
+	ASSERT_NE(static_cast<unsigned char*>(NULL), last);
 	*last = '\0';
 	EXPECT_STREQ(expected, reinterpret_cast<const char*>(output.data()));
 }

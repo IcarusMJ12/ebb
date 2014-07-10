@@ -10,6 +10,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <map>
 #include <string>
 #include <tuple>
 #include <vector>
@@ -98,13 +99,18 @@ namespace ebb {
 			const std::array<char, N>> : std::true_type {};
 		template<size_t N> struct is_char_array<
 			const std::array<char, N>&> : std::true_type {};
-		template<typename A> void assert_valid_key_type() {
-			static_assert(std::is_convertible<A, std::vector<unsigned char>>::value
+		template<typename A> struct is_valid_key_type {
+			static constexpr bool value =
+				std::is_convertible<A, std::vector<unsigned char>>::value
 				|| std::is_convertible<A, std::vector<char>>::value
 				|| std::is_convertible<A, const char*>::value
 				|| std::is_convertible<A, std::string>::value
 				|| is_char_array<A>::value
-				|| is_unsigned_char_array<A>::value
+				|| is_unsigned_char_array<A>::value;
+		};
+
+		template<typename A> void assert_valid_key_type() {
+			static_assert(is_valid_key_type<A>::value
 				, "Bencoded dictionary key must be a char*, an std::vector<unsigned char>"
 				", an std::array<char, N>, or an std::array<unsigned char, N>");
 		}
@@ -283,7 +289,9 @@ namespace ebb {
 			//TODO: array to tuple, perhaps?
 			template<typename T, size_t S, typename... Arguments> unsigned char*
 				bencode(std::array<T, S> const& value, Arguments&&... remaining) {
-				bencode(blist_begin);
+				if (bencode(blist_begin) == NULL) {
+					return NULL;
+				}
 				for(auto const& v : value) {
 					if (bencode(v) == NULL) {
 						return NULL;
@@ -294,13 +302,31 @@ namespace ebb {
 
 			template<typename T, typename... Arguments> unsigned char*
 				bencode(std::vector<T> const& value, Arguments&&... remaining) {
-				bencode(blist_begin);
+				if (bencode(blist_begin) == NULL) {
+					return NULL;
+				}
 				for(auto const& v : value) {
 					if (bencode(v) == NULL) {
 						return NULL;
 					}
 				}
 				return bencode(blist_end, remaining...);
+			}
+
+			template<typename K, typename V, typename... Arguments> typename
+				std::enable_if<detail::is_valid_key_type<K>::value,
+				unsigned char*>::type
+				bencode(std::map<K, V> const& value, Arguments&&... remaining)
+			{
+				if (bencode(bdict_begin) == NULL) {
+					return NULL;
+				}
+				for(auto const& pair : value) {
+					if (bencode(pair.first) == NULL || bencode(pair.second) == NULL) {
+						return NULL;
+					}
+				}
+				return bencode(bdict_end, remaining...);
 			}
 	};
 
@@ -408,6 +434,34 @@ namespace ebb {
 				return NULL;
 			}
 			value.push_back(element);
+		}
+		len--;
+		return buffer + 1;
+	}
+
+	template<typename K, typename V> typename std::enable_if<
+		detail::is_valid_key_type<K>::value, unsigned char const*>::type bdecode(
+			unsigned char const* buffer, size_t &len, std::map<K, V> &value) {
+		if (len < 2 || *buffer != 'd') {
+			return NULL;
+		}
+		buffer++;
+		len--;
+		value.clear();
+		while(*buffer != 'e') {
+			K key;
+			buffer = bdecode(buffer, len, key);
+			if (buffer == NULL || len == 0) {
+				value.clear();
+				return NULL;
+			}
+			V val;
+			buffer = bdecode(buffer, len, val);
+			if (buffer == NULL || len == 0) {
+				value.clear();
+				return NULL;
+			}
+			value[key] = val;
 		}
 		len--;
 		return buffer + 1;
